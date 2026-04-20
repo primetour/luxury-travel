@@ -235,17 +235,25 @@ nav.bottom .divider { display: none; }
 /* Mobile landscape — any short-height landscape device (phone rotated).
    Key trick: switch the viewer from width-driven to height-driven sizing so
    aspect-ratio is honoured without fighting a 100% width constraint that
-   would collapse or overflow the page. */
+   would collapse or overflow the page. Also lock the viewport (no scroll)
+   so the sticky header doesn't steal flow height and push the viewer under
+   the bottom nav. */
 @media (max-height: 600px) and (orientation: landscape) {
+  body { overflow: hidden; height: 100dvh; }
   header { padding: calc(4px + var(--safe-top)) 14px 4px; }
   .logo { font-size: 13px; }
   .logo small { display: none; }
   .status { display: none; }
+  .toggle button { padding: 6px 12px; font-size: 10px; min-height: 34px; }
+  .header-right { gap: 8px; }
+  .share-btn { width: 34px; height: 34px; }
+  /* Main fills whatever's left after the (sticky) header — without this the
+     header's 50-ish px overflowed the dvh and forced a scroll on landscape. */
   main { padding: 4px 4px calc(52px + var(--safe-bottom));
-         height: calc(100dvh - var(--safe-top)); }
+         height: calc(100dvh - 52px - var(--safe-top)); }
   .stage { width: auto; height: 100%; align-items: center; }
   .viewer { width: auto; height: 100%;
-            max-height: calc(100dvh - 100px - var(--safe-top) - var(--safe-bottom));
+            max-height: calc(100dvh - 110px - var(--safe-top) - var(--safe-bottom));
             max-width: 100%; }
   nav.bottom { padding: 4px 8px calc(4px + var(--safe-bottom)); }
   nav.bottom button { min-width: 34px; min-height: 34px; font-size: 14px; }
