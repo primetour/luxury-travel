@@ -497,11 +497,14 @@ function fitAll() {
   for (const el of overlaysEl.children) fitOverlay(el);
 }
 
+let _renderToken = 0;
 function renderPage(n) {
   n = Math.max(1, Math.min(TOTAL, n));
   // Tag each render with a monotonic token so late onload handlers from a
-  // superseded page don't retroactively reframe the viewer.
-  const token = ++renderPage._token;
+  // superseded page don't retroactively reframe the viewer. Use a module-
+  // scoped var (not a function property) because renderPage is later wrapped
+  // and `renderPage._token` would resolve to the wrapper's (undefined) prop.
+  const token = ++_renderToken;
   currentPage = n;
   loading.style.display = 'grid';
   loading.textContent = lang === 'en' ? 'Loading…' : 'Carregando…';
@@ -513,7 +516,7 @@ function renderPage(n) {
   let loaded = 0;
   let fired = false;
   const onLoad = () => {
-    if (token !== renderPage._token) return;  // a newer renderPage has started
+    if (token !== _renderToken) return;  // a newer renderPage has started
     if (fired) return;                        // idempotent — guard against cache+onload double
     fired = true;
     loading.style.display = 'none';
@@ -529,12 +532,12 @@ function renderPage(n) {
   bgPT.src = ptSrc;
   bgClean.src = clSrc;
   requestAnimationFrame(() => {
-    if (token !== renderPage._token) return;
+    if (token !== _renderToken) return;
     if (bgPT.complete || bgClean.complete) onLoad();
   });
   // Ultimate safety net: force-fire after 400ms regardless, so objectPosition
   // never lingers on the wrong half even if both onload and rAF miss.
-  setTimeout(() => { if (token === renderPage._token) onLoad(); }, 400);
+  setTimeout(() => { if (token === _renderToken) onLoad(); }, 400);
 
   pgInput.value = n;
   btnPrev.disabled = btnFirst.disabled = (n === 1);
@@ -552,7 +555,7 @@ function renderPage(n) {
     }
   }
 }
-renderPage._token = 0;
+// (_renderToken is declared at module scope; no need to initialize on function)
 
 function updateStatus() {
   const p = overlaysData && overlaysData.find(x => x.page === currentPage);
