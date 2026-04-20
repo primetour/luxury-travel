@@ -108,6 +108,35 @@ body.en .viewer .bg-clean { opacity: 1; }
 
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: #999; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; }
 
+/* Splash preload screen: covers the whole viewport until every page image has
+   been fetched + decoded, so subsequent flipping is instant. */
+.splash { position: fixed; inset: 0; z-index: 100;
+          display: grid; place-items: center;
+          background: var(--bg);
+          padding: 40px 24px calc(40px + var(--safe-bottom));
+          transition: opacity .45s ease; }
+.splash.hidden { opacity: 0; pointer-events: none; }
+.splash-inner { display: flex; flex-direction: column; align-items: center; gap: 28px;
+                 max-width: 420px; width: 100%; text-align: center; }
+.splash .brand { font-family: 'Abril Fatface', serif; font-size: 28px; letter-spacing: .02em; line-height: 1; color: var(--ink); }
+.splash .brand small { display: block; font-family: 'Futura LT', Jost, sans-serif; font-weight: 300;
+                       font-size: 10px; letter-spacing: .35em; text-transform: uppercase;
+                       opacity: .55; margin-top: 8px; }
+.splash .bar { width: 100%; height: 3px; background: rgba(0,0,0,.08); border-radius: 999px; overflow: hidden; }
+.splash .bar > i { display: block; height: 100%; width: 0%; background: var(--accent);
+                   transition: width .2s ease; }
+.splash .pct { font-family: 'Futura LT', Jost, sans-serif; font-size: 10.5px; letter-spacing: .3em;
+                text-transform: uppercase; color: rgba(0,0,0,.55); }
+.splash .start-btn { border: 1px solid rgba(0,0,0,.2); background: transparent; color: var(--ink);
+                     font: inherit; font-size: 11px; letter-spacing: .25em; text-transform: uppercase;
+                     padding: 12px 22px; border-radius: 999px; cursor: pointer;
+                     opacity: 0; pointer-events: none; transition: opacity .3s, background .2s, color .2s;
+                     min-height: 42px; }
+.splash .start-btn.ready { opacity: 1; pointer-events: auto; }
+.splash .start-btn:hover { background: var(--ink); color: #fff; }
+.splash .hint { font-family: 'Futura LT', Jost, sans-serif; font-size: 9.5px; letter-spacing: .25em;
+                 text-transform: uppercase; color: rgba(0,0,0,.35); }
+
 nav.bottom { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
              display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
              padding: 10px 18px calc(10px + var(--safe-bottom));
@@ -207,6 +236,15 @@ nav.bottom .divider { display: none; }
 </style>
 </head>
 <body>
+<div class="splash" id="splash" role="status" aria-live="polite">
+  <div class="splash-inner">
+    <div class="brand">LUXURY TRAVEL<small>by PRIMETOUR · ED07</small></div>
+    <div class="pct" id="splash-pct">Preparando edição · 0%</div>
+    <div class="bar"><i id="splash-bar"></i></div>
+    <button class="start-btn" id="splash-start" type="button">Começar a ler</button>
+    <div class="hint">Uma única pré-carga para leitura fluida</div>
+  </div>
+</div>
 <header>
   <div class="logo">LUXURY TRAVEL<small>by PRIMETOUR · ED07 · Bilingual</small></div>
   <div class="toggle" role="tablist" aria-label="Language toggle">
@@ -506,8 +544,12 @@ function renderPage(n) {
   // and `renderPage._token` would resolve to the wrapper's (undefined) prop.
   const token = ++_renderToken;
   currentPage = n;
-  loading.style.display = 'grid';
+  // Don't flash the "Loading…" indicator for instant (preloaded) navigations:
+  // show it only if the image is still not ready after 140ms.
   loading.textContent = lang === 'en' ? 'Loading…' : 'Carregando…';
+  const loadingTimer = setTimeout(() => {
+    if (token === _renderToken && !fired) loading.style.display = 'grid';
+  }, 140);
 
   // DO NOT change aspect-ratio or object-position here — that would reframe
   // the CURRENTLY displayed (old) image and briefly reveal the wrong half.
@@ -519,6 +561,7 @@ function renderPage(n) {
     if (token !== _renderToken) return;  // a newer renderPage has started
     if (fired) return;                        // idempotent — guard against cache+onload double
     fired = true;
+    clearTimeout(loadingTimer);
     loading.style.display = 'none';
     applyMagFocus();
   };
@@ -675,6 +718,69 @@ function updateScale() {
   viewer.style.setProperty('--s', (viewer.clientWidth / refW).toFixed(5));
 }
 
+// =============== PRELOAD QUEUE + SPLASH ======================================
+// Fetch + decode every page image before handing the reader to the user, so
+// flipping is instant and never stalls on network/decoding. The user can tap
+// "Começar a ler" after a threshold to start reading while the rest streams
+// in the background.
+const PRELOAD_CONCURRENCY = 8;
+const EARLY_START_RATIO = 0.15;     // show "Começar a ler" after 15%
+let preloadStarted = false;
+let readerReady = false;            // true once the user may interact
+async function preloadAllImages() {
+  const urls = [];
+  for (let n = 1; n <= TOTAL; n++) {
+    urls.push(pageBgSrc(n, 'pt'));
+    urls.push(pageBgSrc(n, 'clean'));
+  }
+  // Front-load pages 1..6 first so the reader opens on a visibly rendered
+  // page immediately when the user starts early.
+  urls.sort((a, b) => {
+    const parse = s => parseInt(s.match(/p(\d+)_/)[1], 10);
+    return parse(a) - parse(b);
+  });
+  const total = urls.length;
+  let done = 0;
+  const splash = document.getElementById('splash');
+  const bar = document.getElementById('splash-bar');
+  const pct = document.getElementById('splash-pct');
+  const startBtn = document.getElementById('splash-start');
+  let earlyStartArmed = false;
+  const tick = () => {
+    const ratio = done / total;
+    const p = Math.round(ratio * 100);
+    bar.style.width = p + '%';
+    pct.textContent = `Preparando edição · ${p}%`;
+    if (!earlyStartArmed && ratio >= EARLY_START_RATIO) {
+      earlyStartArmed = true;
+      startBtn.classList.add('ready');
+    }
+  };
+  const queue = urls.slice();
+  async function worker() {
+    while (queue.length) {
+      const url = queue.shift();
+      if (!url) return;
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      try { await img.decode(); } catch (_) { /* 404 / decode error — skip */ }
+      done++;
+      tick();
+    }
+  }
+  const workers = Array.from({length: PRELOAD_CONCURRENCY}, worker);
+  await Promise.all(workers);
+}
+
+function hideSplash() {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  splash.classList.add('hidden');
+  setTimeout(() => splash.remove(), 500);
+  readerReady = true;
+}
+
 async function init() {
   const v = `?v=${Date.now()}`;
   const [ov, tr, bf] = await Promise.all([
@@ -696,6 +802,16 @@ async function init() {
   renderPage(1);
   window.addEventListener('resize', updateScale);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(updateScale);
+
+  // Kick off the full preload, then auto-dismiss the splash when done. The
+  // user can also dismiss early by clicking the "Começar a ler" button after
+  // a small initial chunk has landed.
+  const startBtn = document.getElementById('splash-start');
+  startBtn.addEventListener('click', hideSplash);
+  if (!preloadStarted) {
+    preloadStarted = true;
+    preloadAllImages().then(() => { if (!readerReady) hideSplash(); });
+  }
 }
 
 // Wiring
