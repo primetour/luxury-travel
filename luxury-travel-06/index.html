@@ -775,8 +775,11 @@ function applyMagFocus() {
   const isSpread = mags.length === 2;
 
   if (!mobileMagMode || !isSpread) {
-    // Desktop or cover page: show the full PDF page.
+    // Desktop or cover page: show the full PDF page. Clear any explicit
+    // px dimensions left over from a previous mag-mode render.
     viewer.style.aspectRatio = `${pw}/${ph}`;
+    viewer.style.width = '';
+    viewer.style.height = '';
     bgPT.style.objectPosition = '50% 50%';
     bgClean.style.objectPosition = '50% 50%';
     resetZoom();
@@ -784,25 +787,51 @@ function applyMagFocus() {
     updateScale();
     return;
   }
-  // Mobile mag mode + spread: reshape viewer to one mag-page aspect and
-  // slide the full-spread image so only the active half shows. No CSS
-  // transform/scale involved → nothing gets clipped top or bottom.
+  // Mobile mag mode + spread: reshape viewer to one mag-page view.
   //
-  // Gutter bleed: designers often sling titles across the spread's center
-  // gutter, drop-cap giant initials live in the inner margin, and
-  // PyMuPDF's bbox for drop-caps sometimes under-reports their visual
-  // extent. Show each mag-page as half-page PLUS a 14% bleed into the
-  // opposite page on the gutter side. Safe for drop-caps and spanning
-  // titles; still discards >86% of the neighbour.
+  // Why not just `aspect-ratio` + `object-fit: cover` + `object-position`?
+  // iOS Safari has a long-standing bug where `aspect-ratio` + `max-width:
+  // 100%` + `height: 100%` doesn't re-derive the height when max-width
+  // clamps the width. The viewer ends up in the wrong proportion and the
+  // cover crop is computed against the WRONG viewer box — cropping mag
+  // content that should be visible. Symptom: body-column text loses
+  // several leading characters on iPhone Safari even though the math
+  // "should" keep it visible.
   //
-  // aspect-ratio is written as a single decimal (e.g. "0.827") rather
-  // than as a numerator/denominator ratio because iOS Safari 15-16 has
-  // rounding glitches on CSS ratios with fractional numerators that
-  // cause the viewer to round UP and effectively ignore the bleed on
-  // narrow viewports. A single decimal number is always rendered exact.
+  // Fix: compute width and height in JS from the stage's current size,
+  // set them as explicit px. No aspect-ratio, no max-width surprises.
+  // Re-runs on every resize (see `applyMagFocus` in the resize listener).
+  //
+  // Gutter bleed: designers sling titles across the center gutter, drop-
+  // caps live in the inner margin, and PyMuPDF's bbox under-reports
+  // drop-cap extent. Show each mag-page as half-page + 14% bleed into
+  // the opposite page on the gutter side.
   const GUTTER_BLEED = 0.14;
-  const displayW = (pw / 2) * (1 + GUTTER_BLEED);
-  viewer.style.aspectRatio = (displayW / ph).toFixed(4);
+  const displayW = (pw / 2) * (1 + GUTTER_BLEED);   // PDF pts
+  const targetAspect = displayW / ph;                // w/h ratio we want
+
+  const stage = viewer.parentElement;
+  const stageW = stage.clientWidth;
+  // Match how the CSS currently caps height in mobile portrait / landscape.
+  const dvh = window.innerHeight;
+  const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
+  const safeBot = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom')) || 0;
+  const isLandscape = window.matchMedia('(max-height: 600px) and (orientation: landscape)').matches;
+  const maxH = isLandscape
+    ? (dvh - 110 - safeTop - safeBot)
+    : (dvh - 170 - safeTop - safeBot);
+
+  // Pick the dimensions: honour max height, but shrink to fit stage width.
+  let h = Math.max(200, maxH);
+  let w = h * targetAspect;
+  if (w > stageW) { w = stageW; h = w / targetAspect; }
+
+  // Clear aspect-ratio (base rule sets it) and apply explicit px so the
+  // cover crop is computed against the correct box.
+  viewer.style.aspectRatio = 'auto';
+  viewer.style.width  = Math.round(w) + 'px';
+  viewer.style.height = Math.round(h) + 'px';
+
   const isLeft = mags[0] === currentMag;
   const pos = isLeft ? '0% 50%' : '100% 50%';
   bgPT.style.objectPosition = pos;
