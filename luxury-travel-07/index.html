@@ -8,6 +8,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#efece7">
 <meta name="format-detection" content="telephone=no">
+<!-- Never cache the HTML itself. All layout logic (JS/CSS) is inlined, so
+     keeping stale HTML means keeping stale logic — which iOS Safari has
+     done too eagerly in the past. Assets (images, fonts) are still
+     cached normally by GitHub Pages at their own filenames. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Luxury Travel by PRIMETOUR | Edições Digitais</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -782,15 +789,20 @@ function applyMagFocus() {
   // transform/scale involved → nothing gets clipped top or bottom.
   //
   // Gutter bleed: designers often sling titles across the spread's center
-  // gutter, so a text that visually belongs to the right page (mag 3) may
-  // actually start ~30-40pt inside the left page (mag 2). Cropping exactly
-  // at pw/2 chops off the leading letters. Show each mag-page as half-page
-  // PLUS an 8% bleed into the opposite page on the gutter side so those
-  // bleeding titles survive. object-position 0% / 100% still works: the
-  // wider viewer just reveals a sliver of the neighbour on the inner edge.
-  const GUTTER_BLEED = 0.08;
+  // gutter, drop-cap giant initials live in the inner margin, and
+  // PyMuPDF's bbox for drop-caps sometimes under-reports their visual
+  // extent. Show each mag-page as half-page PLUS a 14% bleed into the
+  // opposite page on the gutter side. Safe for drop-caps and spanning
+  // titles; still discards >86% of the neighbour.
+  //
+  // aspect-ratio is written as a single decimal (e.g. "0.827") rather
+  // than as a numerator/denominator ratio because iOS Safari 15-16 has
+  // rounding glitches on CSS ratios with fractional numerators that
+  // cause the viewer to round UP and effectively ignore the bleed on
+  // narrow viewports. A single decimal number is always rendered exact.
+  const GUTTER_BLEED = 0.14;
   const displayW = (pw / 2) * (1 + GUTTER_BLEED);
-  viewer.style.aspectRatio = `${displayW}/${ph}`;
+  viewer.style.aspectRatio = (displayW / ph).toFixed(4);
   const isLeft = mags[0] === currentMag;
   const pos = isLeft ? '0% 50%' : '100% 50%';
   bgPT.style.objectPosition = pos;
