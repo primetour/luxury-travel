@@ -486,19 +486,25 @@ function fitAll() {
 
 function renderPage(n) {
   n = Math.max(1, Math.min(TOTAL, n));
+  // Tag each render with a monotonic token so late onload handlers from a
+  // superseded page don't retroactively reframe the viewer.
+  const token = ++renderPage._token;
   currentPage = n;
   loading.style.display = 'grid';
   loading.textContent = lang === 'en' ? 'Loading…' : 'Carregando…';
 
-  // Per-page aspect ratio (covers are narrower than spreads)
-  const pageData = overlaysData && overlaysData.find(p => p.page === n);
-  if (pageData) {
-    const [pw, ph] = pageData.size;
-    viewer.style.aspectRatio = `${pw}/${ph}`;
-  }
+  // DO NOT change aspect-ratio or object-position here — that would reframe
+  // the CURRENTLY displayed (old) image and briefly reveal the wrong half.
+  // applyMagFocus runs only after the new image has actually loaded, below.
 
   let loaded = 0;
-  const onLoad = () => { if (++loaded >= 1) loading.style.display = 'none'; };
+  const onLoad = () => {
+    if (token !== renderPage._token) return;  // a newer renderPage has started
+    if (++loaded >= 1) {
+      loading.style.display = 'none';
+      applyMagFocus();
+    }
+  };
   bgPT.onload = onLoad; bgClean.onload = onLoad;
   bgPT.onerror = onLoad; bgClean.onerror = onLoad;
   bgPT.src = pageBgSrc(n, 'pt');
@@ -520,6 +526,7 @@ function renderPage(n) {
     }
   }
 }
+renderPage._token = 0;
 
 function updateStatus() {
   const p = overlaysData && overlaysData.find(x => x.page === currentPage);
@@ -854,16 +861,16 @@ stage.addEventListener('touchend', e => {
   lastTap = now;
 });
 
-// Reset zoom whenever page changes, so navigation is clean. Then re-apply
-// mag-focus (which reshapes aspect + object-position for mobile spreads,
-// or restores defaults for desktop / covers).
+// Reset zoom + keep currentMag consistent on every PDF-page render. The
+// aspect-ratio + object-position reframe (applyMagFocus) now happens inside
+// renderPage's onLoad callback — deferred until the new image has actually
+// loaded, so we never show the old image through a new crop window.
 const _renderPage = renderPage;
 renderPage = function(n) {
   resetZoom();
-  _renderPage(n);
   const mags = magPagesIndex && magPagesIndex[n];
   if (mags && !mags.includes(currentMag)) currentMag = mags[0];
-  requestAnimationFrame(applyMagFocus);
+  _renderPage(n);
 };
 
 // Re-apply on viewport changes: rotation, window resize, breakpoint crossings.
