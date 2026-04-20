@@ -202,18 +202,24 @@ nav.bottom .divider { display: none; }
   main { padding: 12px 8px calc(80px + var(--safe-bottom)); }
   .viewer { height: calc(100vh - 220px); height: calc(100dvh - 220px - var(--safe-top) - var(--safe-bottom)); }
 }
-/* Mobile + small tablet */
+/* Mobile + small tablet.
+   Viewer uses height-driven sizing (width: auto derived from aspect-ratio)
+   so when vertical space is the binding constraint, width shrinks with it
+   instead of staying at 100% and letting object-fit:cover crop the page. */
 @media (max-width: 900px) {
+  body { overflow: hidden; height: 100dvh; }
   header { padding: calc(10px + var(--safe-top)) 14px 10px; }
   .logo { font-size: 16px; }
   .logo small { display: none; }
   .toggle button { padding: 10px 14px; font-size: 10px; letter-spacing: .15em; min-height: 40px; }
   .header-right { gap: 8px; }
   .share-btn { width: 38px; height: 38px; }
-  main { padding: 6px 4px calc(72px + var(--safe-bottom)); }
-  .stage { width: 100%; }
-  .viewer { height: auto; width: 100%;
-            max-height: calc(100vh - 170px - var(--safe-top) - var(--safe-bottom));
+  main { padding: 6px 4px calc(72px + var(--safe-bottom));
+         height: calc(100dvh - 72px - var(--safe-top));
+         align-items: center; }
+  .stage { width: 100%; height: 100%; align-items: center; }
+  .viewer { height: 100%; width: auto;
+            max-width: 100%;
             max-height: calc(100dvh - 170px - var(--safe-top) - var(--safe-bottom)); }
   nav.bottom { padding: 8px 10px calc(8px + var(--safe-bottom)); }
   nav.bottom button { font-size: 16px; min-width: 38px; min-height: 38px; padding: 0 4px; }
@@ -229,7 +235,8 @@ nav.bottom .divider { display: none; }
   header { padding: calc(8px + var(--safe-top)) 12px 8px; }
   .logo { font-size: 14px; }
   .toggle button { padding: 8px 12px; font-size: 9.5px; min-height: 36px; }
-  main { padding: 4px 4px calc(64px + var(--safe-bottom)); }
+  main { padding: 4px 4px calc(64px + var(--safe-bottom));
+         height: calc(100dvh - 64px - var(--safe-top)); }
   .viewer { max-height: calc(100dvh - 120px - var(--safe-top) - var(--safe-bottom)); }
   nav.bottom { padding: 6px 8px calc(6px + var(--safe-bottom)); }
 }
