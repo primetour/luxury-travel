@@ -73,11 +73,14 @@ header { position: sticky; top: 0; z-index: 20; background: rgba(239,236,231,.95
                  touch-action: manipulation; min-height: 36px; }
 .toggle button.active { background: var(--ink); color: #fff; }
 
-main { max-width: 1400px; margin: 0 auto; padding: 20px 12px 90px; display: flex; justify-content: center; }
-.stage { position: relative; max-width: 100%; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+main { max-width: 1400px; margin: 0 auto; padding: 14px 12px calc(78px + var(--safe-bottom));
+        display: flex; justify-content: center; align-items: flex-start; }
+.stage { position: relative; max-width: 100%; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+         display: flex; justify-content: center; }
 .viewer { position: relative; background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.06);
           border-radius: 2px; overflow: hidden; aspect-ratio: 1139.530029296875/785.197021484375;
-          height: calc(100vh - 160px); height: calc(100dvh - 160px); max-width: 100%;
+          height: calc(100vh - 210px); height: calc(100dvh - 210px - var(--safe-top) - var(--safe-bottom));
+          max-width: 100%;
           transform: translate(var(--zx, 0px), var(--zy, 0px)) scale(var(--zoom, 1));
           transform-origin: center center;
           transition: transform .18s ease;
@@ -151,8 +154,8 @@ nav.bottom .divider { display: none; }
 
 /* Tablet */
 @media (max-width: 980px) {
-  main { padding: 14px 8px 110px; }
-  .viewer { height: calc(100vh - 180px); height: calc(100dvh - 180px); }
+  main { padding: 12px 8px calc(80px + var(--safe-bottom)); }
+  .viewer { height: calc(100vh - 220px); height: calc(100dvh - 220px - var(--safe-top) - var(--safe-bottom)); }
 }
 /* Mobile + small tablet */
 @media (max-width: 900px) {
@@ -160,11 +163,11 @@ nav.bottom .divider { display: none; }
   .logo { font-size: 16px; }
   .logo small { display: none; }
   .toggle button { padding: 10px 14px; font-size: 10px; letter-spacing: .15em; min-height: 40px; }
-  main { padding: 8px 4px calc(90px + var(--safe-bottom)); }
+  main { padding: 6px 4px calc(72px + var(--safe-bottom)); }
   .stage { width: 100%; }
   .viewer { height: auto; width: 100%;
-            max-height: calc(100vh - 180px - var(--safe-top) - var(--safe-bottom));
-            max-height: calc(100dvh - 180px - var(--safe-top) - var(--safe-bottom)); }
+            max-height: calc(100vh - 170px - var(--safe-top) - var(--safe-bottom));
+            max-height: calc(100dvh - 170px - var(--safe-top) - var(--safe-bottom)); }
   .status { padding: 4px 12px; font-size: 10px; }
   nav.bottom { padding: 8px 10px calc(8px + var(--safe-bottom)); }
   nav.bottom button { font-size: 16px; min-width: 38px; min-height: 38px; padding: 0 4px; }
@@ -175,13 +178,23 @@ nav.bottom .divider { display: none; }
   nav.bottom .page-input .pg-label { display: none; }
   .ai-banner { font-size: 9.5px; padding: 5px 10px; letter-spacing: .1em; }
 }
+/* Very narrow phones — tighten further so viewer isn't pushed under nav */
+@media (max-width: 440px) {
+  header { padding: calc(8px + var(--safe-top)) 12px 8px; }
+  .logo { font-size: 14px; }
+  .toggle button { padding: 8px 12px; font-size: 9.5px; min-height: 36px; }
+  .status { display: none; }
+  main { padding: 4px 4px calc(64px + var(--safe-bottom)); }
+  .viewer { max-height: calc(100dvh - 120px - var(--safe-top) - var(--safe-bottom)); }
+  nav.bottom { padding: 6px 8px calc(6px + var(--safe-bottom)); }
+}
 /* Mobile landscape */
 @media (max-height: 520px) and (orientation: landscape) {
   header { padding: 6px 14px; }
   .logo { font-size: 14px; }
   .logo small { display: none; }
-  main { padding: 4px 4px 70px; }
-  .viewer { height: calc(100vh - 110px); height: calc(100dvh - 110px); max-height: none; }
+  main { padding: 4px 4px calc(60px + var(--safe-bottom)); }
+  .viewer { height: calc(100vh - 120px); height: calc(100dvh - 120px); max-height: none; }
   nav.bottom { padding: 4px 8px calc(4px + var(--safe-bottom)); }
   nav.bottom button { min-width: 34px; min-height: 34px; font-size: 14px; }
   .ai-banner { display: none; }
@@ -498,17 +511,30 @@ function renderPage(n) {
   // applyMagFocus runs only after the new image has actually loaded, below.
 
   let loaded = 0;
+  let fired = false;
   const onLoad = () => {
     if (token !== renderPage._token) return;  // a newer renderPage has started
-    if (++loaded >= 1) {
-      loading.style.display = 'none';
-      applyMagFocus();
-    }
+    if (fired) return;                        // idempotent — guard against cache+onload double
+    fired = true;
+    loading.style.display = 'none';
+    applyMagFocus();
   };
   bgPT.onload = onLoad; bgClean.onload = onLoad;
   bgPT.onerror = onLoad; bgClean.onerror = onLoad;
-  bgPT.src = pageBgSrc(n, 'pt');
-  bgClean.src = pageBgSrc(n, 'clean');
+  const ptSrc = pageBgSrc(n, 'pt');
+  const clSrc = pageBgSrc(n, 'clean');
+  // If the new src is identical (e.g. re-render of same page) OR if the cached
+  // image is already complete after assignment, the browser may skip firing
+  // `load`. Force the handler on the next frame so applyMagFocus always runs.
+  bgPT.src = ptSrc;
+  bgClean.src = clSrc;
+  requestAnimationFrame(() => {
+    if (token !== renderPage._token) return;
+    if (bgPT.complete || bgClean.complete) onLoad();
+  });
+  // Ultimate safety net: force-fire after 400ms regardless, so objectPosition
+  // never lingers on the wrong half even if both onload and rAF miss.
+  setTimeout(() => { if (token === renderPage._token) onLoad(); }, 400);
 
   pgInput.value = n;
   btnPrev.disabled = btnFirst.disabled = (n === 1);
@@ -657,6 +683,12 @@ async function init() {
   translations = tr;
   blockFills = bf;
   computeMagPages();
+  // Reframe the viewer to the first page's aspect BEFORE kicking off the
+  // initial image load, so the cover doesn't briefly appear stretched into
+  // the wider fallback spread aspect baked into the inline style.
+  currentPage = 1;
+  currentMag = 1;
+  applyMagFocus();
   updateScale();
   renderPage(1);
   window.addEventListener('resize', updateScale);
