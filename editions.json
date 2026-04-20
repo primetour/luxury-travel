@@ -1,5 +1,14 @@
 [
   {
+    "id": "ed06",
+    "slug": "luxury-travel-06",
+    "title": "LUXURY TRAVEL",
+    "subtitle": "Edition 06",
+    "pages": 139,
+    "cover": "luxury-travel-06/assets/pages/p001_pt.jpg",
+    "url": "luxury-travel-06/"
+  },
+  {
     "id": "ed07",
     "slug": "luxury-travel-07",
     "title": "LUXURY TRAVEL",
