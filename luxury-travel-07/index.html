@@ -584,20 +584,32 @@ function applyMagFocus() {
   if (!overlaysData || !magPagesIndex) return;
   const page = overlaysData.find(p => p.page === currentPage);
   if (!page) return;
-  if (!mobileMagMode) { resetZoom(); return; }
+  const [pw, ph] = page.size;
   const mags = magPagesIndex[currentPage] || [];
-  // Keep currentMag consistent with the active PDF page
   if (!mags.includes(currentMag)) currentMag = mags[0];
-  // If the page isn't a spread (cover / single), no zoom-half — just fit.
   const isSpread = mags.length === 2;
-  if (!isSpread) { resetZoom(); updateMagPages(); return; }
-  const cw = viewer.clientWidth;
+
+  if (!mobileMagMode || !isSpread) {
+    // Desktop or cover page: show the full PDF page.
+    viewer.style.aspectRatio = `${pw}/${ph}`;
+    bgPT.style.objectPosition = '50% 50%';
+    bgClean.style.objectPosition = '50% 50%';
+    resetZoom();
+    updateMagPages();
+    updateScale();
+    return;
+  }
+  // Mobile mag mode + spread: reshape viewer to one mag-page aspect and
+  // slide the full-spread image so only the active half shows. No CSS
+  // transform/scale involved → nothing gets clipped top or bottom.
+  viewer.style.aspectRatio = `${pw / 2}/${ph}`;
   const isLeft = mags[0] === currentMag;
-  zoom = 2;
-  zx = isLeft ? cw / 2 : -cw / 2;
-  zy = 0;
-  applyTransform();
+  const pos = isLeft ? '0% 50%' : '100% 50%';
+  bgPT.style.objectPosition = pos;
+  bgClean.style.objectPosition = pos;
+  resetZoom();
   updateMagPages();
+  updateScale();
 }
 
 function navBy(delta) {
@@ -762,11 +774,11 @@ stage.addEventListener('touchstart', e => {
     // In mobile magazine mode the default zoom IS >1 (half-page focus), but
     // we still want horizontal swipes to flip pages and vertical drags (none)
     // ignored. Distinguish pan from swipe by gesture direction in touchmove.
-    // In mag mode, zoom=2 is the baseline; swipe unless the user pinched in
-    // further (then it's pan). Outside mag mode, any zoom>1 means pan.
-    const panThreshold = mobileMagMode ? 2.1 : 1.01;
+    // Mag mode now uses aspect-ratio + object-position (no CSS transform),
+    // so zoom stays at 1 at baseline in every mode. Pan only kicks in when
+    // the user has pinched-zoomed in past baseline.
     touchState = {
-      mode: zoom > panThreshold ? 'pan' : 'swipe',
+      mode: zoom > 1.01 ? 'pan' : 'swipe',
       startX: e.touches[0].clientX, startY: e.touches[0].clientY,
       startZX: zx, startZY: zy, t0: Date.now(),
       resolved: false,
@@ -824,17 +836,12 @@ stage.addEventListener('touchend', e => {
   touchState = null;
 });
 
-// Double-tap / double-click to zoom in or return to baseline.
-// In mobile-mag mode the baseline is zoom=2 (focused on a mag half), so
-// double-tap toggles between that baseline and a closer reading zoom.
+// Double-tap / double-click toggles between baseline (zoom=1) and a reading
+// zoom (~2×). Works identically in mag mode and desktop — mag mode's half-
+// page framing is applied via aspect-ratio, not zoom, so baseline is always 1.
 let lastTap = 0;
 stage.addEventListener('dblclick', e => {
-  if (mobileMagMode) {
-    if (zoom > 2.1) applyMagFocus();
-    else zoomBy(1.75, e.clientX, e.clientY);
-  } else {
-    zoomBy(zoom < 2 ? 2 : (1/zoom), e.clientX, e.clientY);
-  }
+  zoomBy(zoom < 1.5 ? 2 : (1/zoom), e.clientX, e.clientY);
 });
 stage.addEventListener('touchend', e => {
   const now = Date.now();
@@ -842,44 +849,27 @@ stage.addEventListener('touchend', e => {
   const dbl = (now - lastTap < 300);
   if (!dbl) { lastTap = now; return; }
   const t = e.changedTouches[0];
-  if (mobileMagMode) {
-    if (zoom > 2.1) applyMagFocus();
-    else zoomBy(1.75, t.clientX, t.clientY);
-  } else if (zoom <= MIN_ZOOM + 0.01) {
-    zoomBy(2, t.clientX, t.clientY);
-  } else {
-    resetZoom();
-  }
+  if (zoom <= MIN_ZOOM + 0.01) zoomBy(2, t.clientX, t.clientY);
+  else resetZoom();
   lastTap = now;
 });
 
-// Reset zoom whenever page changes, so navigation is clean. Then, on mobile
-// portrait, re-focus to the active magazine half (zoom=2 + pan).
+// Reset zoom whenever page changes, so navigation is clean. Then re-apply
+// mag-focus (which reshapes aspect + object-position for mobile spreads,
+// or restores defaults for desktop / covers).
 const _renderPage = renderPage;
 renderPage = function(n) {
   resetZoom();
   _renderPage(n);
-  // Keep currentMag in sync with the new PDF page
   const mags = magPagesIndex && magPagesIndex[n];
   if (mags && !mags.includes(currentMag)) currentMag = mags[0];
-  requestAnimationFrame(() => {
-    if (mobileMagMode) applyMagFocus();
-  });
+  requestAnimationFrame(applyMagFocus);
 };
 
-// Re-apply mag focus when viewport rotates / resizes (breakpoint crosses
-// portrait<->landscape). Also re-compute scale so overlay text stays sharp.
-window.addEventListener('resize', () => {
-  updateScale();
-  if (mobileMagMode) applyMagFocus();
-  else resetZoom();
-});
+// Re-apply on viewport changes: rotation, window resize, breakpoint crossings.
+window.addEventListener('resize', () => { updateScale(); applyMagFocus(); });
 window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    updateScale();
-    if (mobileMagMode) applyMagFocus();
-    else resetZoom();
-  }, 80);
+  setTimeout(() => { updateScale(); applyMagFocus(); }, 80);
 });
 
 init();
