@@ -6,16 +6,19 @@
 <title>LUXURY TRAVEL — PRIMETOUR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Jost:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Jost:ital,wght@0,200..900;1,200..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
 <style>
 :root { --accent: #b48a4a; --ink: #1a1a1a; --bg: #efece7; --card: #fff; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body { font-family: Jost, -apple-system, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
 header { padding: 40px 24px 20px; text-align: center; }
-.logo { font-family: 'Abril Fatface', serif; font-size: 48px; letter-spacing: .02em; line-height: 1; margin: 0; }
-.logo small { display: block; font-family: Jost, sans-serif; font-weight: 300; font-size: 12px;
-              letter-spacing: .35em; text-transform: uppercase; opacity: .6; margin-top: 8px; }
+.logo { font-family: 'Playfair Display', 'Bodoni Moda', 'Didot', serif; font-weight: 500;
+        font-size: 56px; letter-spacing: .14em; line-height: 1; margin: 0;
+        text-transform: uppercase; }
+.logo small { display: block; font-family: 'Playfair Display', 'Bodoni Moda', serif;
+              font-weight: 400; font-style: italic; font-size: 14px;
+              letter-spacing: .15em; text-transform: none; opacity: .6; margin-top: 10px; }
 .intro { max-width: 680px; margin: 12px auto 0; font-size: 14px; font-weight: 300; color: #555; line-height: 1.55; padding: 0 16px; }
 main { max-width: 1320px; margin: 0 auto; padding: 32px 20px 120px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 28px; }
@@ -25,7 +28,8 @@ main { max-width: 1320px; margin: 0 auto; padding: 32px 20px 120px; }
 .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(0,0,0,.14), 0 4px 10px rgba(0,0,0,.06); }
 .card .cover { aspect-ratio: 570/785; background-size: cover; background-position: center; background-color: #ddd; }
 .card .meta { padding: 18px 18px 22px; }
-.card .title { font-family: 'Abril Fatface', serif; font-size: 20px; line-height: 1.1; }
+.card .title { font-family: 'Playfair Display', 'Bodoni Moda', serif; font-weight: 500;
+                font-size: 22px; line-height: 1.1; letter-spacing: .08em; text-transform: uppercase; }
 .card .subtitle { font-size: 12px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); margin-top: 6px; }
 .card .pages { font-size: 11px; color: #888; margin-top: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .empty { text-align: center; color: #888; padding: 40px; font-size: 13px; }
@@ -33,10 +37,11 @@ footer { padding: 24px; text-align: center; font-size: 11px; letter-spacing: .15
 .nav-admin { position: absolute; top: 16px; right: 20px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #888; text-decoration: none; }
 .nav-admin:hover { color: var(--accent); }
 @media (max-width: 640px) {
-  .logo { font-size: 34px; }
+  .logo { font-size: 38px; letter-spacing: .1em; }
+  .logo small { font-size: 11px; }
   header { padding: 28px 16px 12px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
-  .card .title { font-size: 16px; }
+  .card .title { font-size: 17px; }
 }
 </style>
 </head>
