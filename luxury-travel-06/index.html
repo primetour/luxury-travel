@@ -780,7 +780,17 @@ function applyMagFocus() {
   // Mobile mag mode + spread: reshape viewer to one mag-page aspect and
   // slide the full-spread image so only the active half shows. No CSS
   // transform/scale involved → nothing gets clipped top or bottom.
-  viewer.style.aspectRatio = `${pw / 2}/${ph}`;
+  //
+  // Gutter bleed: designers often sling titles across the spread's center
+  // gutter, so a text that visually belongs to the right page (mag 3) may
+  // actually start ~30-40pt inside the left page (mag 2). Cropping exactly
+  // at pw/2 chops off the leading letters. Show each mag-page as half-page
+  // PLUS an 8% bleed into the opposite page on the gutter side so those
+  // bleeding titles survive. object-position 0% / 100% still works: the
+  // wider viewer just reveals a sliver of the neighbour on the inner edge.
+  const GUTTER_BLEED = 0.08;
+  const displayW = (pw / 2) * (1 + GUTTER_BLEED);
+  viewer.style.aspectRatio = `${displayW}/${ph}`;
   const isLeft = mags[0] === currentMag;
   const pos = isLeft ? '0% 50%' : '100% 50%';
   bgPT.style.objectPosition = pos;
