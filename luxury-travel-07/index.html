@@ -393,7 +393,14 @@ let overlaysData = null;
 let translations = {};
 let blockFills = {};
 let currentPage = 1;
-let lang = 'pt';
+// Initial language: honour ?lang=en or ?lang=pt from the URL so the landing
+// page can pre-select a language without a PT-then-EN flicker. Default PT.
+let lang = (() => {
+  try {
+    const l = new URLSearchParams(location.search).get('lang');
+    return (l === 'en' || l === 'pt') ? l : 'pt';
+  } catch (_) { return 'pt'; }
+})();
 
 const $ = id => document.getElementById(id);
 const viewer = $('viewer');
@@ -403,6 +410,15 @@ const loading = $('loading');
 const pgInput = $('pg-input');
 const btnPrev = $('btn-prev'), btnNext = $('btn-next'), btnFirst = $('btn-first'), btnLast = $('btn-last');
 const btnPT = $('btn-pt'), btnEN = $('btn-en');
+
+// Apply the URL-hinted language to the DOM immediately (synchronously,
+// before any image fetch) so the EN render is shown from frame one when
+// the landing page directs the user to ?lang=en.
+document.body.classList.toggle('en', lang === 'en');
+btnPT.classList.toggle('active', lang === 'pt');
+btnEN.classList.toggle('active', lang === 'en');
+btnPT.setAttribute('aria-pressed', lang === 'pt');
+btnEN.setAttribute('aria-pressed', lang === 'en');
 
 function pad(n) { return String(n).padStart(3, '0'); }
 function pageBgSrc(n, variant) { return `assets/pages/p${pad(n)}_${variant}.jpg`; }
