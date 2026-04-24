@@ -394,12 +394,14 @@ let translations = {};
 let blockFills = {};
 let currentPage = 1;
 // Initial language: honour ?lang=en or ?lang=pt from the URL so the landing
-// page can pre-select a language without a PT-then-EN flicker. Default PT.
+// page can pre-select a language without flicker. Default EN — direct
+// accesses (e.g. via QR code) land in English; users who pick PT on the
+// landing page arrive with ?lang=pt explicitly.
 let lang = (() => {
   try {
     const l = new URLSearchParams(location.search).get('lang');
-    return (l === 'en' || l === 'pt') ? l : 'pt';
-  } catch (_) { return 'pt'; }
+    return (l === 'en' || l === 'pt') ? l : 'en';
+  } catch (_) { return 'en'; }
 })();
 
 const $ = id => document.getElementById(id);
