@@ -39,12 +39,27 @@ main { max-width: 1320px; margin: 0 auto; padding: 32px 20px 120px; }
 footer { padding: 24px; text-align: center; font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: #888; }
 .nav-admin { position: absolute; top: 16px; right: 20px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #888; text-decoration: none; }
 .nav-admin:hover { color: var(--accent); }
+.share-btn { position: absolute; top: 14px; left: 20px;
+             background: #fff; border: 0; border-radius: 999px;
+             box-shadow: 0 2px 14px rgba(0,0,0,.08);
+             width: 40px; height: 40px; cursor: pointer; color: var(--ink);
+             display: inline-flex; align-items: center; justify-content: center;
+             transition: background .2s, color .2s, transform .15s; }
+.share-btn:hover { background: var(--ink); color: #fff; }
+.share-btn:active { transform: scale(.92); }
+.share-btn svg { width: 16px; height: 16px; display: block; }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px);
+         background: rgba(20,18,14,.92); color: #fff; padding: 10px 18px; border-radius: 999px;
+         font-size: 13px; letter-spacing: .04em; opacity: 0; pointer-events: none;
+         transition: opacity .2s, transform .2s; z-index: 200; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (max-width: 640px) {
   .logo { font-size: 38px; letter-spacing: .1em; }
   .logo small { font-size: 11px; }
   header { padding: 28px 16px 12px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
   .card .title { font-size: 17px; }
+  .share-btn { top: 10px; left: 12px; width: 36px; height: 36px; }
 }
 
 .lang-modal { position: fixed; inset: 0; z-index: 100;
@@ -80,6 +95,13 @@ footer { padding: 24px; text-align: center; font-size: 11px; letter-spacing: .15
 </head>
 <body>
 <header style="position:relative;">
+  <button id="btn-share" class="share-btn" type="button" aria-label="Compartilhar" title="Compartilhar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+      <polyline points="16 6 12 2 8 6"></polyline>
+      <line x1="12" y1="2" x2="12" y2="15"></line>
+    </svg>
+  </button>
   <h1 class="logo">LUXURY TRAVEL<small>by PRIMETOUR</small></h1>
   <p class="intro">A biblioteca bilíngue (PT / EN) das edições da revista LUXURY TRAVEL.
      Cada edição é um flipbook com o PDF original em português e uma versão em inglês,
@@ -90,6 +112,37 @@ footer { padding: 24px; text-align: center; font-size: 11px; letter-spacing: .15
 <a class="card" href="luxury-travel-07/?lang=pt" data-url="luxury-travel-07/" aria-label="Abrir LUXURY TRAVEL Edition 07"><div class="cover" style="background-image:url('luxury-travel-07/assets/pages/p001_pt.jpg');"></div><div class="meta"><div class="title">LUXURY TRAVEL</div><div class="subtitle">Edition 07</div><div class="pages">139 pages · PT / EN</div></div></a></div>
 </main>
 <footer>© PRIMETOUR · Luxury Travel</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  function showToast(msg, ms){
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => t.classList.remove('show'), ms || 1800);
+  }
+  async function shareLanding(){
+    const url = location.origin + location.pathname;
+    const title = 'LUXURY TRAVEL by PRIMETOUR';
+    const text = 'Luxury Travel by PRIMETOUR — biblioteca bilíngue de edições digitais (PT / EN)';
+    if (navigator.share) {
+      try { await navigator.share({title, text, url}); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copiado');
+    } catch (_) {
+      window.prompt('Copie o link:', url);
+    }
+  }
+  const b = document.getElementById('btn-share');
+  if (b) b.addEventListener('click', shareLanding);
+})();
+</script>
 
 <div class="lang-modal" id="lang-modal" role="dialog" aria-modal="true"
      aria-labelledby="lang-modal-label" aria-hidden="true">
