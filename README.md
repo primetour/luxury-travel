@@ -1,3 +1,15 @@
+# LUXURY TRAVEL — endereço antigo
+
+**A revista mudou para https://revistaluxurytravel.com.br** (09/11/2026): é um site do Gestor PRIMETOUR (repositório
+`primetour/site-luxurytravel`), e o flipbook de cada edição mora no cofre do site (`sites-luxurytravel`), não mais aqui.
+
+Este repositório fica só para o GitHub Pages (`primetour.github.io/luxury-travel/…`), porque os **QR impressos** da
+edição 07 apontam para cá: cada página leva ao mesmo lugar no endereço novo, mantendo o idioma (`?lang=`). **Não apague
+o repositório nem desligue o Pages.** Edição nova: o pipeline `primetour-publish` gera a pasta, que sobe para o cofre com
+`sites-infra/cofre/subir-edicao.mjs`, e a edição é cadastrada no módulo Luxury Travel do Gestor.
+
+---
+
 # LUXURY TRAVEL — Bilingual Flipbook
 
 Biblioteca bilíngue (PT / EN) das edições da revista LUXURY TRAVEL by PRIMETOUR.
